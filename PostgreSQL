@@ -1,0 +1,39 @@
+I have listed the top five assignments based on total value of donations, categorized by donor type. 
+I have then identified the assignment with the highest impact score in each region, ensuring that each listed assignment has received at least one donation.
+WITH sum_donations AS(
+	SELECT 
+	d.assignment_id,
+	donors.donor_type,
+	SUM(d.amount) AS total_donation_amount
+	FROM donations as d
+	LEFT JOIN donors
+	ON d.donor_id = donors.donor_id
+	GROUP BY d.assignment_id, donors.donor_type
+	)
+
+SELECT 
+	donor_type, ROUND(total_donation_amount, 2) AS rounded_total_donation_amount, 
+	a.region, a.assignment_name
+	FROM sum_donations AS sd
+	LEFT JOIN assignments AS a
+	ON sd.assignment_id = a.assignment_id
+	ORDER BY rounded_total_donation_amount DESC
+	LIMIT 5;
+
+WITH assignment_impact AS(
+	SELECT a.assignment_name, a.region, a.impact_score, 
+	COUNT(DISTINCT d.donation_id) AS num_total_donations
+	FROM assignments AS a
+	LEFT JOIN donations AS d
+	ON a.assignment_id = d.assignment_id
+	GROUP BY assignment_name, region, impact_score
+),
+	top_impact AS(
+	SELECT assignment_name, region, num_total_donations, impact_score,
+	ROW_NUMBER() OVER(PARTITION BY region ORDER BY impact_score DESC) AS rnk
+	FROM assignment_impact
+	)
+
+SELECT assignment_name, region, num_total_donations, impact_score
+FROM top_impact
+WHERE rnk = 1
